@@ -55,4 +55,6 @@ Grok Bot 主 Bot 上已配置每天 **06:30（Asia/Shanghai）** 的“Tailnet �
 
 CPA 模型列表、文本回复和 SSE 均已验证；适配器和 Tailscale 进程异常退出后，守护恢复了原有 Tailnet 身份、IP 和 CPA 调用。NAS 容器启动检查通过。
 
-Tailscale 进程重启后，SSH 在 banner exchange 阶段超时，原因尚未确定。Grok 自动安全审查拦截了后续 `sudo tailscale set --ssh`，要求用户在 Grok 内确认。每日任务已创建且启用，尚未验证一次完整的定时执行，因此普通重启和镜像重建恢复仍需验证，不能视为已完成。
+首版 Tailscale 进程重启后，SSH 在 banner exchange 阶段超时。后续诊断确认原因是缺少 SSH 所需的状态目录，日志报 `no var root for ssh keys`：仅指定自定义 `--state` 时，Tailscale 只会从名为 `tailscale` 的父目录推导状态目录（[上游实现](https://github.com/tailscale/tailscale/blob/main/cmd/tailscaled/tailscaled.go)）。修订版显式传入 `--statedir=/var/lib/tailscale`，并将 CLI 超时延长至 45 秒，避免高负载时过早失败。
+
+Grok 自动安全审查曾要求用户确认 `sudo tailscale set --ssh`；用户已完成该授权和命令执行。每日任务已创建且启用，尚未验证一次完整的定时执行，修订版部署和 SSH 恢复仍需确认。
