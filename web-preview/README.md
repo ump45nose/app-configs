@@ -28,3 +28,5 @@ python3 /home/yuwk/cron/scripts/container-boot.py --check
 Skill 源码：`skills/fn-web-preview-delivery/`。复制到 `~/.codex/skills/fn-web-preview-delivery/` 即可供后续 HTML 交付任务自动匹配。
 
 2026-10-09 验证：目录页 10 个方案链接均返回 200；RP 在局域网 HTTP 页面通过 19 项检查、8 种视口；HTML 原子替换立即生效。3 项标准库测试覆盖私有路径与符号链接边界、目录预览与禁止列表、缓存和 HEAD 行为（运行 `python3 -m unittest -v test_server.py`）。Dockge 原版 utilities 页面可见新服务，容器健康；启动检查 missing、active_unplanned、stopped_planned 均为空。交付 skill 已安装并通过 quick_validate.py。
+
+2026-10-09 新增大纲与生图交互预览，固定路径 `/sillytavern/addons/`。首页补充右栏、完整大纲和生图配置入口；源目录仍在既有设计挂载中，不改服务或部署定义。目录 14 个链接均返回 200 和 `no-store`。该页面是设计审阅，尚未接入酒馆运行功能。
