@@ -40,6 +40,9 @@ ssh <Linux用户名>@<Tailscale-IP>
 
 ```bash
 ssh box@100.103.12.86
+
+# 新 Bot（CPA 模型名 grokbot-2）
+ssh box@100.71.234.37
 ```
 
 若 Tailscale SSH 返回身份复核 URL，由用户在浏览器完成授权。
@@ -66,6 +69,10 @@ Tailscale 已在线时，也可以在 Mac 直接执行：
 ```bash
 ssh box@100.103.12.86 'python3 /home/box/cli-config/grokbot/recover.py ensure'
 ssh box@100.103.12.86 'python3 /home/box/cli-config/grokbot/recover.py status'
+
+# 新 Bot（CPA 模型名 grokbot-2）
+ssh box@100.71.234.37 'python3 /home/box/cli-config/grokbot/recover.py ensure'
+ssh box@100.71.234.37 'python3 /home/box/cli-config/grokbot/recover.py status'
 ```
 
 镜像重建后若 Tailscale 尚未启动，先通过 Grok Bot 的 Computer 终端执行恢复命令。
@@ -74,6 +81,8 @@ ssh box@100.103.12.86 'python3 /home/box/cli-config/grokbot/recover.py status'
 
 完整任务提示词保存在 [daily-recovery.json](daily-recovery.json) 的 `prompt` 字段，计划为每天 06:30（Asia/Shanghai），正常且没有恢复动作时保持静默。这个 JSON 是配置规格，需要通过平台原生 `UpdateRoutine` 登记或更新；复制文件本身不会创建云端任务。
 
+新 Bot（`grokbot-2`）使用 [daily-recovery-grokbot-2.json](daily-recovery-grokbot-2.json)；其任务名称与旧 Bot 分开，恢复命令仍在各自的 Computer 内执行。
+
 每日例程会唤起 Bot，可能消耗模型额度；Computer 内的后台守护只消耗系统资源。
 
-**当前例程已登记，但云端自动执行尚未通过验收。** 镜像重建后目前使用第四步手动恢复，验证记录和限制见 [README](README.md#验证状态2026-10-08)。
+**两个 Bot 的例程均已登记，但云端自动执行尚未通过验收。** 镜像重建后目前使用第四步手动恢复，旧 Bot 的验证记录见 [README](README.md#验证状态2026-10-08)，新 Bot 的记录见 [新 Bot 验证状态](README.md#新-bot-验证状态2026-10-09)。

@@ -10,6 +10,7 @@
 | [proxy.js](proxy.js) | 将 Grok Agent 文本对话适配为 OpenAI 格式接口；Bot 部署路径为 `/home/box/cursor-proxy/proxy.js`。 |
 | [recover.py](recover.py) | 保存已有 Tailnet 身份、安装开机入口，并守护 Tailscale 和适配器；Bot 部署路径为 `/home/box/cli-config/grokbot/recover.py`。 |
 | [daily-recovery.json](daily-recovery.json) | 每日恢复任务的名称、提示词和计划规格，需通过 Grok 平台原生例程工具登记。 |
+| [daily-recovery-grokbot-2.json](daily-recovery-grokbot-2.json) | 新 Bot 的独立每日恢复任务规格，保留旧 Bot 的任务。 |
 | [.gitignore](.gitignore) | 排除私有配置、身份文件、SSH 主机密钥、二进制和日志。 |
 
 首次连接按提示词完成安装、用户浏览器授权和 Tailscale SSH，然后配置 CPA 文本适配器。已有部署的恢复使用 `recover.py ensure`，不需要重复首次登录流程。
@@ -19,17 +20,22 @@
 ## CPA 调用
 
 - 本地地址：`http://192.168.31.201:8317/v1`
-- 模型名：`grokbot`
 - 使用现有 CPA 客户端密钥。
-- 既有渠道 `grokbot-cursor` 已更新为 `http://100.103.12.86:1341/v1`，并显式使用 `proxy-url: direct`。
 
-当前 Grok Gateway 不提供模型列表和模型切换 API。旧版 `agentDefaultModel` 字段已移除，因此没有继续发布原渠道的 13 个 Claude/Grok 模型别名。`grokbot` 指向 Bot 默认模型；模型名称不代表可下载的模型权重。
+| CPA 模型名 | Bot Tailscale IPv4 | Linux 用户 | CPA 渠道 | 独立桥接密钥文件（NAS 私有） |
+| --- | --- | --- | --- | --- |
+| `grokbot` | `100.103.12.86` | `box` | `grokbot-cursor` | `/vol2/1000/Docker/stacks/ai/env/grokbot-bridge.json` |
+| `grokbot-2` | `100.71.234.37` | `box` | `grokbot-2` | `/vol2/1000/Docker/stacks/ai/env/grokbot-2-bridge.json` |
+
+两个渠道分别访问对应 Bot 的 `http://<Tailscale-IP>:1341/v1`，显式使用 `proxy-url: direct`，并为该渠道设置 `request-retry: 0`。新 Bot 作为额外模型加入，旧 Bot 的渠道、密钥和部署保持不变。
+
+当前 Grok Gateway 不提供模型列表和模型切换 API。旧版 `agentDefaultModel` 字段已移除，因此没有继续发布原渠道的 13 个 Claude/Grok 模型别名。`grokbot` 和 `grokbot-2` 各自指向对应 Bot 的默认模型；模型名称不代表可下载的模型权重。
 
 `proxy.js` 将文本消息交给原有专用 `cursor-proxy-agent`，按 `clientNonce` 和 `requestId` 获取回复。该 Agent 保留对话上下文。这是 Agent 对话适配；工具调用、图片输入和结构化输出会被拒绝。SSE 在 Agent 产生回复后发送，不能提供底层模型的实时 token 流，也不能保证 Agent 不执行自身工具。token 用量为估算值。
 
 适配器只监听 `127.0.0.1:1341`，由 Tailscale Serve 的 TCP 1341 转发。没有启用 Funnel。模型接口额外验证独立密钥；Gateway 原有监听配置未修改。适配器每次请求重新发现 `sand-data/gateway.json`，不会把 Gateway token 写入 Git 或请求日志。
 
-NAS 渠道配置在 `/vol2/1000/Docker/CPA/config.yaml`。桥接密钥保存在 `/vol2/1000/Docker/stacks/ai/env/grokbot-bridge.json` 和 Bot 的私有适配器配置中；这些文件均为 0600，不进入本仓库。
+NAS 渠道配置在 `/vol2/1000/Docker/CPA/config.yaml`。每个桥接密钥保存在上表对应的 NAS 私有文件和对应 Bot 的 `/home/box/cursor-proxy/config.json` 中；这些文件均为 0600，不进入本仓库。两个 Bot 的文件路径相同，但位于各自独立的 Computer 中，身份和专用 Agent 不共享。
 
 ## 恢复
 
@@ -56,11 +62,14 @@ python3 /home/box/cli-config/grokbot/recover.py status
 
 ```bash
 ssh box@100.103.12.86 'python3 /home/box/cli-config/grokbot/recover.py ensure'
+
+# 新 Bot
+ssh box@100.71.234.37 'python3 /home/box/cli-config/grokbot/recover.py ensure'
 ```
 
 若重建后 Tailscale 尚未启动，应在 Grok Bot 中执行恢复命令，SSH 此时无法提供初次恢复入口。
 
-Grok Bot 主 Bot 上已用平台原生 `UpdateRoutine` 登记云端例程 `tailnet-cpa`，最终计划为每天 **06:30（Asia/Shanghai）**，规格见 `daily-recovery.json`。平台状态确认只有这一条同名例程且已启用。每日任务会唤起 Bot，可能计入模型额度；普通后台守护只消耗系统资源。任务要求正常且没有恢复动作时保持静默，恢复异常或需要用户操作时通知。
+旧 Bot（`grokbot`）的主 Bot 上已用平台原生 `UpdateRoutine` 登记云端例程 `tailnet-cpa`，最终计划为每天 **06:30（Asia/Shanghai）**，规格见 `daily-recovery.json`。平台状态确认只有这一条同名例程且已启用。每日任务会唤起 Bot，可能计入模型额度；普通后台守护只消耗系统资源。任务要求正常且没有恢复动作时保持静默，恢复异常或需要用户操作时通知。
 
 **云端自动执行尚未通过验收。** 平台记录一次 failed，单次真实调度测试也未观察到恢复命令执行，详见下方验证状态。因此镜像重建后目前应在 Grok Bot 中手动执行 `recover.py ensure`，不能保证等待每日例程就会自动恢复。
 
@@ -77,3 +86,13 @@ CPA 模型列表、文本回复和 SSE 均已验证；适配器和 Tailscale 进
 Grok 自动安全审查曾要求用户确认 `sudo tailscale set --ssh`；用户已完成该授权和命令执行。修订版已部署。
 
 原生 `UpdateRoutine` 的创建、更新事件及平台注入的例程状态确认云端例程存在。Gateway 的手动触发接口返回 HTTP 409、`automation-run-now/refused`；平台状态记录 22:37:37 failed，没有错误正文。22:50 的单次真实调度测试未观察到 `ensure` 执行，平台也没有新增这一轮的运行记录。随后已通过原生工具恢复每日 06:30，下一次为 2026-10-09 06:30。云端失败日志无法从现有接口取得，需要用户在平台查看详情后继续排查；没有变更账户权限或绕过审核。
+
+## 新 Bot 验证状态（2026-10-09）
+
+`100.71.234.37` 已完成用户的 Tailscale SSH 身份复核，并部署同一版本的适配器和恢复守护。Gateway 健康检查通过；适配器无凭据访问返回 401，带独立密钥的模型列表和文本回复返回 200。CPA 已通过配置热加载发布 `grokbot-2`，同时保留 `grokbot`；SSE 返回 200、预期回复及 `[DONE]`，没有重启 NAS 容器。
+
+受控结束新 Bot 的 Tailscale 和适配器进程后，守护自动启动了新进程，Tailnet 节点身份与 IPv4/IPv6 地址保持不变。SSH 在严格主机密钥校验下连接成功，适配器健康、持久身份和开机入口检查均通过。Tailscale 已从 `/usr/local/libexec/grokbot/` 运行，使用 `--statedir=/var/lib/tailscale`。
+
+新 Bot 的主 Agent 已通过平台原生例程工具登记 `tailnet-cpa-grokbot-2`，名称为“Tailnet 与 CPA 每日恢复（grokbot-2）”，计划每天 06:30（Asia/Shanghai），规格见 [daily-recovery-grokbot-2.json](daily-recovery-grokbot-2.json)。Transcript 的 `automation-changed / created` 事件和原生工具保存结果确认创建成功；正常且无恢复动作时静默，需要通知时发到新 Bot 的当前聊天。旧 Bot 的例程保持不变。平台状态为“已启用，从未运行”，首次计划在 **2026-10-10 06:30**。原生工具没有手动触发云端例程的功能，因此没有用当前聊天执行命令替代云端验收。**创建成功不代表云端执行通过，新例程尚未完成一次云端执行验收。**
+
+未执行整台新 Computer 的重启或销毁重建测试。平台镜像重建仍依赖 Computer 内的 `recover.py ensure` 恢复入口；恢复脚本不会重新注册 Tailnet 身份。
