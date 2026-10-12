@@ -30,3 +30,7 @@ Skill 源码：`skills/fn-web-preview-delivery/`。复制到 `~/.codex/skills/fn
 2026-10-09 验证：目录页 10 个方案链接均返回 200；RP 在局域网 HTTP 页面通过 19 项检查、8 种视口；HTML 原子替换立即生效。3 项标准库测试覆盖私有路径与符号链接边界、目录预览与禁止列表、缓存和 HEAD 行为（运行 `python3 -m unittest -v test_server.py`）。Dockge 原版 utilities 页面可见新服务，容器健康；启动检查 missing、active_unplanned、stopped_planned 均为空。交付 skill 已安装并通过 quick_validate.py。
 
 2026-10-09 新增大纲与生图交互预览，固定路径 `/sillytavern/addons/`。首页补充右栏、完整大纲和生图配置入口；源目录仍在既有设计挂载中，不改服务或部署定义。目录 14 个链接均返回 200 和 `no-store`。该页面是设计审阅，尚未接入酒馆运行功能。
+
+2026-10-12 新增 `/fiqa-xiaoyu/` 模型选片对照。生成页面位于 `/vol2/1000/Docker/face-baseline/previews/fiqa-xiaoyu/`，专用目录只读挂载，不提供图库、数据库、权重或实验环境。生成源码在 face-baseline/scripts/compare-fiqa.py 和 fiqa-comparison.html；改页面直接刷新，无需重启。
+
+新增嵌套只读挂载前，先在父挂载的源码 `public/<project>/` 建空目录占位（如 `.gitkeep`）；否则只读父挂载无法在容器启动时创建新挂载点。实际预览文件仍放独立交付目录。
