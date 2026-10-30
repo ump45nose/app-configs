@@ -42,18 +42,31 @@ def prepare(destination):
     route = destination / "local/app/api/subscriptions/[id]/config.yaml/route.ts"
     replace_once(route, 'import { apiError } from "@local/lib/http";',
                  'import { apiError } from "@local/lib/http";\n'
-                 'import { ANDROID_TAILSCALE_PROFILE, applyAndroidTailscaleProfile } from "@local/lib/android-tailscale";')
+                 'import { applyTailscaleProfile, subscriptionTailscaleClient } from "@local/lib/android-tailscale";')
     replace_once(route, '  return new Response(result.yaml, {',
-                 '  const profile = new URL(request.url).searchParams.get("profile");\n'
-                 '  if (profile && profile !== ANDROID_TAILSCALE_PROFILE) {\n'
-                 '    return apiError("Unknown subscription profile.", "BAD_REQUEST", 400);\n'
-                 '  }\n'
+                 '  let client: ReturnType<typeof subscriptionTailscaleClient>;\n'
+                 '  try {\n'
+                 '    client = subscriptionTailscaleClient(new URL(request.url).searchParams.get("profile"), request.headers.get("user-agent"));\n'
+                 '  } catch { return apiError("Unknown subscription profile.", "BAD_REQUEST", 400); }\n'
                  '  let yaml = result.yaml;\n'
-                 '  if (profile === ANDROID_TAILSCALE_PROFILE) {\n'
-                 '    try { yaml = applyAndroidTailscaleProfile(yaml); }\n'
-                 '    catch { return apiError("Unable to generate Android Tailscale profile.", "CONFIGURATION_ERROR", 500); }\n'
+                 '  if (client) {\n'
+                 '    try { yaml = applyTailscaleProfile(yaml, client); }\n'
+                 '    catch { return apiError("Unable to generate phone Tailscale profile.", "CONFIGURATION_ERROR", 500); }\n'
                  '  }\n'
+                 '  const headers = buildSubscriptionResponseHeaders(result.name, result.subscriptionInfo, {\n'
+                 '    cacheControl: "no-store", cacheExpirySeconds: result.cacheExpirySeconds,\n'
+                 '    autoUpdateIntervalSeconds: result.autoUpdateIntervalSeconds, isAdmin: result.isAdmin,\n'
+                 '  });\n'
+                 '  if (client) headers["vary"] = "User-Agent";\n'
                  '  return new Response(yaml, {')
+    replace_once(route,
+                 '    headers: buildSubscriptionResponseHeaders(result.name, result.subscriptionInfo, {\n'
+                 '      cacheControl: "no-store",\n'
+                 '      cacheExpirySeconds: result.cacheExpirySeconds,\n'
+                 '      autoUpdateIntervalSeconds: result.autoUpdateIntervalSeconds,\n'
+                 '      isAdmin: result.isAdmin,\n'
+                 '    }),',
+                 '    headers,')
     tests = destination / "local/app/api/subscriptions/[id]/config.yaml/route.test.ts"
     tests.write_text(tests.read_text() + '\n' + (HERE / "route-tests.ts.txt").read_text())
     # Limit Next build workers on the NAS; this does not change request handling.

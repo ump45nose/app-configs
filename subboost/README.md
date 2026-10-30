@@ -1,10 +1,30 @@
-# Android 上的代理与 Tailscale
+# 手机上的代理与 Tailscale
 
-手机只开启 Clash Meta for Android（CMFA）的 VPN，由内置 Mihomo 同时处理代理和 Tailscale 出站。无需 root，也无需 NAS 承担互联网出口。
+Android 使用 Clash Meta for Android（CMFA）的内置 Mihomo，Apple 使用 Stash 内置 Tailscale；手机只开启对应代理 App 的 VPN，同时处理公网分流与 Tailnet。
 
-本次部署与已验证范围见 [2026-10-10 验收记录](DEPLOYMENT.md)。
+Android 初次部署与已验证范围见 [2026-10-10 验收记录](DEPLOYMENT.md)。
 
-## 手机接入
+## Stash（Apple）接入
+
+手机链接使用 `?profile=phone`，服务按 Stash 的 User-Agent 返回原生 Tailscale 配置。
+已有 `?profile=android-tailscale` 链接在 Stash 内更新时也会自动适配。
+手动下载、导入或客户端不发送 Stash User-Agent 时，改用 `?profile=stash-tailscale` 明确指定。
+普通订阅链接仍输出原配置。
+
+Stash 输出不含 Mihomo 的 `state-dir`、`accept-routes`、`ephemeral` 或 `ts://` DNS，
+不指定 hostname，由 Stash 使用当前 Apple 设备的主机名或设备标识。
+在代理列表打开 `TAILNET` 节点菜单，进入 Tailscale 页面完成首次认证，再按规则模式连接。
+Stash 官方文档标明内置 Tailscale 需要 iOS/tvOS 3.4+、macOS 4.2+；
+自动 MagicDNS 和 Tailnet 路由需要 iOS/tvOS 3.6+、macOS 4.3+。
+家庭子网继续由前置规则交给 TAILNET，公网规则和节点保持原订阅。
+
+已注册设备会保留原 Tailnet 身份；更新配置并重启 Stash 后，如果管理后台仍保留手动设置的旧名称，
+在 Tailscale 管理后台将该 Apple 设备改成所需名称，无需删除设备或清除应用数据。
+
+依据：[Stash Tailscale 参数](https://stash.wiki/proxy-protocols/proxy-types#tailscale)、
+[自动 Tailnet 路由与 MagicDNS](https://stash.wiki/features/nat-traversal)。
+
+## Android 手机接入
 
 1. 在家里 Wi-Fi 打开 [SubBoost](http://192.168.31.201:13000)，复制现有订阅的 YAML 链接，在末尾追加 `?profile=android-tailscale`，在 CMFA 中新建 URL 配置。以后手机更新这个链接即可，PC 继续使用原链接。
 2. CMFA 2.11.32 使用 **规则模式**，关闭设置里的 **绕过私有网络**。如果开了全局覆写，不要覆写本配置的 `nameserver-policy`、fake-IP 过滤或模式。系统私人 DNS 先设为自动/关闭进行首轮验证。
@@ -14,7 +34,7 @@
 
 首次 Tailscale 请求可能超时，完成登录后重试。后续配置刷新仍使用应用私有目录下的 `clash/tailscale/android-mihomo` 状态；不要清除 CMFA 应用数据。需要长期无人值守时，在 Tailscale 控制台按自己的策略管理这个新设备的密钥到期。
 
-同一模板可导入另一台手机，但每台手机会独立注册身份。需要不同名称时修改 `android-tailscale.json` 的 hostname 并提供另一份 profile。
+Android 模板保留原设备名和状态目录，每台手机会独立注册身份。需要不同 Android 名称时修改 `android-tailscale.json` 的 hostname 并提供另一份 profile。
 
 ## 分流与边界
 
@@ -63,7 +83,7 @@ NAS 的私有回退记录放在 `/vol2/1000/Docker/subboost/backups/android-tail
 python3 subboost/verify.py /vol2/1000/Docker/subboost/backups/android-tailscale-<时间>
 ```
 
-回滚时仅恢复 `app.image` 到上述官方 digest，移除本次增加的 Watchtower 标签，再运行同一个单服务更新命令。保留最新数据库数据和所有既有身份。手机需要切回普通订阅或官方 Tailscale App 才能继续组网。
+本次 Stash 适配的回滚只需将 `app.image` 恢复为 `local/subboost:2.8.1-subscriptions-v1`，再运行同一个单服务更新命令；保留 Watchtower 排除标签及现有元数据接口。保留最新数据库数据和所有既有身份。手机需要切回普通订阅或官方 Tailscale App 才能继续组网。
 
 ## 依据
 
@@ -76,4 +96,4 @@ python3 subboost/verify.py /vol2/1000/Docker/subboost/backups/android-tailscale-
 
 ## 订阅元数据读取
 
-2026-10-22 增加 GET /api/integrations/subscriptions，使用独立 SUBSCRIPTIONS_READ_TOKEN Bearer 与 SUBSCRIPTIONS_OWNER_ID 限定所有者；只读缓存，不触发刷新。逐来源返回稳定 ID、名称、供应商上下行／总量／到期、观察时间和过期状态，不返回 URL、节点或凭据。仅保留到期信息的来源不补齐用量。镜像 local/subboost:2.8.1-subscriptions-v1；保留现有 Android Tailnet 适配、身份、数据库与调度。11项原测试、Next构建／TypeScript及真实鉴权读取通过。
+2026-10-22 增加 GET /api/integrations/subscriptions，使用独立 SUBSCRIPTIONS_READ_TOKEN Bearer 与 SUBSCRIPTIONS_OWNER_ID 限定所有者；只读缓存，不触发刷新。逐来源返回稳定 ID、名称、供应商上下行／总量／到期、观察时间和过期状态，不返回 URL、节点或凭据。仅保留到期信息的来源不补齐用量。当前镜像 local/subboost:2.8.1-phone-stash-v1；保留现有 Android Tailnet 适配、身份、数据库与调度。11项原测试、Next构建／TypeScript及真实鉴权读取通过。
