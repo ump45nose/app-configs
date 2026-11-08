@@ -1,9 +1,8 @@
 # Token Monitor adapters
 
-`usage-monitor/` preserves the existing independently running Usage Monitor MCP
-adapter. It was moved out of the retired Personal Data Hub without changing
-its data sources, interfaces, OAuth, container or schedule. Token Monitor itself
-continues in its existing upstream checkout and production deployment.
+Usage Monitor MCP is maintained in Nook at `personal-data/usage`. This directory
+contains the Token Monitor account adapters. Token Monitor itself continues in
+its independent repository and existing production deployment.
 
 The Mac account adapter targets the verified installed 0.75.0 source, identified
 by `prepare.py` hashes; it does not patch the older NAS agent. Run
